@@ -1,0 +1,8 @@
+[package]
+name = "ternary-cargo"
+version = "0.1.0"
+edition = "2021"
+description = "Resource transport and logistics between rooms with ternary conservation verification"
+license = "MIT"
+
+[dependencies]
