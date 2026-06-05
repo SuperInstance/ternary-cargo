@@ -1,95 +1,93 @@
 # ternary-cargo
 
-Resource transport and logistics between rooms with ternary conservation verification.
+**Ternary Cargo — Resource transport and logistics between rooms**
 
-## Why This Exists
+[![ternary](https://img.shields.io/badge/ecosystem-ternary-blue)](https://github.com/orgs/SuperInstance/repositories?q=ternary)
+[![tests](https://img.shields.io/badge/tests-27-green)]()
 
-Fleets move resources between rooms — data, energy, agent components, blueprints. But in a ternary system, resources carry a {-1, 0, +1} weight, and conservation matters: the total ternary value entering a room should match what left the origin. Ternary-cargo provides cargo holds, ships, trade routes, manifests, and a smuggling system for adversarial testing.
+## Overview
 
-## Core Concepts
+Ternary Cargo — Resource transport and logistics between rooms.
 
-- **Ternary resource**: A resource (Data, Energy, Agent, Blueprint, Computation) with a ternary weight (Positive, Neutral, Negative) and a quantity. Total value = weight × quantity.
-- **Cargo hold**: Storage at a room with capacity limits. Merges resources of the same kind and weight.
-- **Manifest**: A declaration of what's being transported, including declared total value. Can be verified against actual cargo.
-- **Trade route**: An established path between rooms with a distance metric. Provides transport cost estimates.
-- **Cargo ship**: Loads from manifests, travels along routes, unloads at destination. Has its own capacity.
-- **Cargo inspector**: Verifies conservation (value before = value after), detects contraband (negative-ternary resources), and validates manifests against actual cargo.
-- **Smuggler**: Hides negative-ternary resources to produce "clean" manifests. For testing adversarial scenarios.
+Provides cargo holds, cargo ships, trade routes, manifests, cargo inspection
+for conservation law verification, and stealth transport for adversarial scenarios.
 
-## Quick Start
+## Architecture
+
+- **`TernaryResource`** — core data structure
+- **`CargoHold`** — core data structure
+- **`Manifest`** — core data structure
+- **`TradeRoute`** — core data structure
+- **`CargoShip`** — core data structure
+- **`CargoInspector`** — core data structure
+- **`CargoInspectionResult`** — core data structure
+- **`Smuggler`** — core data structure
+- **`ResourceKind`** — state enumeration
+- **`TernaryWeight`** — state enumeration
+
+### Key Functions
+
+- `value()`
+- `from_i32()`
+- `new()`
+- `total_value()`
+- `is_positive()`
+- `new()`
+- `room_id()`
+- `store()`
+- `withdraw()`
+- `total_quantity()`
+- ... and 28 more
+
+## Why Ternary?
+
+The balanced ternary system {-1, 0, +1} (also known as Z₃) is the mathematically optimal discrete encoding:
+- **More expressive than binary**: three states capture positive, neutral, and negative
+- **Natural for decisions**: accept/reject/abstain, buy/hold/sell, agree/disagree/neutral
+- **Self-balancing**: the 0 state acts as a universal screen, preventing pathological lock-in
+- **Z₃ cyclic dynamics**: rock-paper-scissors is the only natural coordination mechanism
+
+## Stats
+
+| Metric | Value |
+|--------|-------|
+| Lines of Rust | 603 |
+| Test count | 27 |
+| Public types | 10 |
+| Public functions | 38 |
+
+## Ecosystem
+
+This crate is part of the **[SuperInstance Ternary Fleet](https://github.com/orgs/SuperInstance/repositories?q=ternary)**:
+
+- **[ternary-core](https://github.com/SuperInstance/ternary-core)** — shared traits and Z₃ arithmetic
+- **[ternary-grid](https://github.com/SuperInstance/ternary-grid)** — spatial grid with {-1, 0, +1} cells
+- **[ternary-graph](https://github.com/SuperInstance/ternary-graph)** — ternary-weighted graph algorithms
+- **[ternary-automata](https://github.com/SuperInstance/ternary-automata)** — three-state cellular automata
+- **[ternary-compiler](https://github.com/SuperInstance/ternary-compiler)** — expression compiler and optimizer
+
+200+ crates. 4,300+ tests. One pattern.
+
+## Research Context
+
+The ternary approach connects to several active research areas:
+- **Ternary Neural Networks** (TNNs): weights constrained to {-1, 0, +1} for efficient inference
+- **Huawei's ternary chip**: 7nm ternary silicon with 60% less power consumption
+- **Active inference**: free energy minimization naturally maps to ternary action selection
+- **Cyclic dominance**: RPS dynamics maintain biodiversity in spatial ecology
+- **Z₃ group theory**: the only algebraic group on three elements is cyclic addition mod 3
+
+## Usage
 
 ```toml
 [dependencies]
-ternary-cargo = "0.1"
+ternary-cargo = "0.1.0"
 ```
 
 ```rust
-use ternary_cargo::*;
-
-let mut hold = CargoHold::new("warehouse", 1000);
-hold.store(TernaryResource::new(ResourceKind::Energy, TernaryWeight::Positive, 50));
-
-let manifest = Manifest::new("m1", "warehouse", "factory".into(), vec![
-    TernaryResource::new(ResourceKind::Energy, TernaryWeight::Positive, 20),
-]);
-
-let mut ship = CargoShip::new("hauler-1", "warehouse", 100);
-ship.load(&manifest);
-
-let route = TradeRoute::new("r1", "warehouse", "factory", 50);
-ship.travel(&route).unwrap();
-let delivered = ship.unload();
+use ternary_cargo;
 ```
-
-## API Overview
-
-| Type | Description |
-|------|-------------|
-| `TernaryResource` | Resource with kind, ternary weight, and quantity |
-| `ResourceKind` | Data, Energy, Agent, Blueprint, Computation |
-| `TernaryWeight` | Positive, Neutral, Negative |
-| `CargoHold` | Room-level storage with capacity |
-| `Manifest` | Cargo declaration with declared value |
-| `TradeRoute` | Established path between rooms |
-| `CargoShip` | Vehicle that loads, travels, and unloads |
-| `CargoInspector` | Verifies conservation and manifest integrity |
-| `Smuggler` | Hides negative resources for adversarial testing |
-
-## How It Works
-
-Transport follows a pipeline: hold → manifest → ship → route → unload. The `CargoInspector` sits at checkpoints, verifying three invariants: (1) ternary value is conserved across transport, (2) no contraband (negative-ternary resources), and (3) manifest matches actual cargo. Any violation fails the inspection.
-
-`CargoHold` merges resources of identical kind and weight automatically — storing 10 Energy+Positive twice results in one entry of 20, not two entries of 10. This simplifies accounting.
-
-`Smuggler` is deliberately provided for adversarial testing: it can hide negative-ternary resources, produce clean manifests that pass superficial inspection, and reveal hidden cargo. This lets you test whether your inspection pipeline catches smuggling attempts.
-
-## Known Limitations
-
-- No multi-hop routing — ships travel one route at a time.
-- No partial loads or split shipments.
-- Capacity is a simple scalar (total quantity), not per-kind.
-- No retry or error recovery for failed transports.
-- No concept of transport time — travel is instantaneous.
-- Smuggler's clean manifest is naive; a sophisticated inspector could catch quantity discrepancies.
-
-## Use Cases
-
-- **Supply chain logistics**: Move materials between factories, verify nothing is lost or substituted in transit.
-- **Game inventory systems**: Players trade items between locations, with inspectors catching cheaters who try to duplicate items.
-- **Adversarial testing**: Use the Smuggler to generate smuggling attempts, then verify your CargoInspector catches them.
-
-## Ecosystem Context
-
-Part of the SuperInstance ternary fleet. Works with `ternary-navigator` for route planning, `ternary-shipyard` for transporting agent blueprints, and `ternary-observatory` for monitoring cargo flow. `ternary-beacon` can announce trade route availability.
 
 ## License
 
 MIT
-
-## See Also
-- **ternary-room** — related
-- **ternary-harbor** — related
-- **ternary-shipyard** — related
-- **ternary-inventory** — related
-- **ternary-channel** — related
-
