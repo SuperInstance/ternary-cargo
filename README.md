@@ -85,3 +85,11 @@ Part of the SuperInstance ternary fleet. Works with `ternary-navigator` for rout
 ## License
 
 MIT
+
+## See Also
+- **ternary-room** — related
+- **ternary-harbor** — related
+- **ternary-shipyard** — related
+- **ternary-inventory** — related
+- **ternary-channel** — related
+
