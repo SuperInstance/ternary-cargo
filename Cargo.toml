@@ -1,4 +1,5 @@
 [package]
+repository = "https://github.com/SuperInstance/ternary-cargo"
 name = "ternary-cargo"
 version = "0.1.0"
 edition = "2021"
