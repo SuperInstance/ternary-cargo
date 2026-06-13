@@ -1,92 +1,113 @@
-# ternary-cargo
+# Ternary Cargo
 
-**Ternary Cargo — Resource transport and logistics between rooms**
+**Ternary Cargo** implements resource transport and logistics between fleet rooms — providing cargo holds, trade routes, manifests, cargo ships, and conservation law verification for ternary-weighted resource exchange.
 
-[![ternary](https://img.shields.io/badge/ecosystem-ternary-blue)](https://github.com/orgs/SuperInstance/repositories?q=ternary)
-[![tests](https://img.shields.io/badge/tests-27-green)]()
+## Why It Matters
 
-## Overview
+Fleet rooms produce and consume resources: computation, energy, data, and agents. When room A has surplus computation capacity and room B needs it, someone must transport the resource. Ternary Cargo models resources with ternary weights {-1 (costly), 0 (neutral), +1 (beneficial)} and verifies that every trade preserves the conservation law: the total ternary value before transport equals the total after. This catches transport losses, theft, and accounting errors.
 
-Ternary Cargo — Resource transport and logistics between rooms.
+## How It Works
 
-Provides cargo holds, cargo ships, trade routes, manifests, cargo inspection
-for conservation law verification, and stealth transport for adversarial scenarios.
-
-## Architecture
-
-- **`TernaryResource`** — core data structure
-- **`CargoHold`** — core data structure
-- **`Manifest`** — core data structure
-- **`TradeRoute`** — core data structure
-- **`CargoShip`** — core data structure
-- **`CargoInspector`** — core data structure
-- **`CargoInspectionResult`** — core data structure
-- **`Smuggler`** — core data structure
-- **`ResourceKind`** — state enumeration
-- **`TernaryWeight`** — state enumeration
-
-### Key Functions
-
-- `value()`
-- `from_i32()`
-- `new()`
-- `total_value()`
-- `is_positive()`
-- `new()`
-- `room_id()`
-- `store()`
-- `withdraw()`
-- `total_quantity()`
-- ... and 28 more
-
-## Why Ternary?
-
-The balanced ternary system {-1, 0, +1} (also known as Z₃) is the mathematically optimal discrete encoding:
-- **More expressive than binary**: three states capture positive, neutral, and negative
-- **Natural for decisions**: accept/reject/abstain, buy/hold/sell, agree/disagree/neutral
-- **Self-balancing**: the 0 state acts as a universal screen, preventing pathological lock-in
-- **Z₃ cyclic dynamics**: rock-paper-scissors is the only natural coordination mechanism
-
-## Stats
-
-| Metric | Value |
-|--------|-------|
-| Lines of Rust | 603 |
-| Test count | 27 |
-| Public types | 10 |
-| Public functions | 38 |
-
-## Ecosystem
-
-This crate is part of the **[SuperInstance Ternary Fleet](https://github.com/orgs/SuperInstance/repositories?q=ternary)**:
-
-- **[ternary-core](https://github.com/SuperInstance/ternary-core)** — shared traits and Z₃ arithmetic
-- **[ternary-grid](https://github.com/SuperInstance/ternary-grid)** — spatial grid with {-1, 0, +1} cells
-- **[ternary-graph](https://github.com/SuperInstance/ternary-graph)** — ternary-weighted graph algorithms
-- **[ternary-automata](https://github.com/SuperInstance/ternary-automata)** — three-state cellular automata
-- **[ternary-compiler](https://github.com/SuperInstance/ternary-compiler)** — expression compiler and optimizer
-
-200+ crates. 4,300+ tests. One pattern.
-
-## Research Context
-
-The ternary approach connects to several active research areas:
-- **Ternary Neural Networks** (TNNs): weights constrained to {-1, 0, +1} for efficient inference
-- **Huawei's ternary chip**: 7nm ternary silicon with 60% less power consumption
-- **Active inference**: free energy minimization naturally maps to ternary action selection
-- **Cyclic dominance**: RPS dynamics maintain biodiversity in spatial ecology
-- **Z₃ group theory**: the only algebraic group on three elements is cyclic addition mod 3
-
-## Usage
-
-```toml
-[dependencies]
-ternary-cargo = "0.1.0"
-```
+### Resource Model
 
 ```rust
-use ternary_cargo;
+TernaryResource {
+    kind: ResourceKind,        // Data, Energy, Agent, Blueprint, Computation
+    ternary_value: TernaryWeight, // Positive (+1), Neutral (0), Negative (-1)
+    quantity: u32,
+}
+
+total_value = ternary_value.value() × quantity  // i64
 ```
+
+### Cargo Hold
+
+```rust
+CargoHold {
+    capacity: u64,
+    contents: Vec<TernaryResource>,
+    used: u64,
+}
+```
+
+- `add(resource)` → **O(1)** push, checks capacity
+- `remove(kind, quantity)` → **O(N)** scan and split
+- `total_value()` → **O(N)** sum
+
+### Trade Route
+
+```rust
+TradeRoute {
+    source: String,       // room ID
+    destination: String,  // room ID
+    manifest: Manifest,
+    ship: CargoShip,
+}
+```
+
+Routes validate: conservation (sum of resources unchanged during transport), capacity (ship can carry the load), and compatibility (destination accepts the resource types).
+
+### Manifest and Conservation
+
+```rust
+Manifest {
+    resources: Vec<TernaryResource>,
+    total_ternary: i64,  // Σ (value × quantity)
+}
+
+verify_conservation(before: &Manifest, after: &Manifest) → bool {
+    before.total_ternary == after.total_ternary
+}
+```
+
+Conservation check: **O(1)** (compare cached totals). Full verification: **O(N)** per manifest.
+
+### Stealth Transport
+
+For adversarial scenarios, `StealthTransport` routes cargo to avoid detection:
+
+```
+path = shortest_path(source, destination, avoid=hostile_rooms)
+```
+
+Path finding: **O(V + E)** Dijkstra with hostile room exclusion.
+
+## Quick Start
+
+```rust
+use ternary_cargo::{TernaryResource, ResourceKind, TernaryWeight, CargoHold};
+
+let mut hold = CargoHold::new(10_000);
+hold.add(TernaryResource::new(ResourceKind::Energy, TernaryWeight::Positive, 500));
+hold.add(TernaryResource::new(ResourceKind::Data, TernaryWeight::Neutral, 100));
+
+println!("Total value: {}", hold.total_value()); // 500
+println!("Used: {}/{}", hold.used(), hold.capacity());
+```
+
+## API
+
+| Type | Description |
+|------|-------------|
+| `TernaryResource` | kind, ternary weight, quantity |
+| `ResourceKind` | Data, Energy, Agent, Blueprint, Computation |
+| `TernaryWeight` | Positive (+1), Neutral (0), Negative (-1) |
+| `CargoHold` | Bounded storage with add/remove/query |
+| `Manifest` | Resource list with conservation total |
+| `TradeRoute` | Source, destination, manifest, ship |
+| `CargoShip` | Transport vehicle with capacity |
+
+## Architecture Notes
+
+Ternary Cargo provides the logistics layer for resource distribution in SuperInstance. In γ + η = C, Positive (+1) resources represent γ (growth — beneficial resources that expand fleet capability), Negative (-1) resources represent η (avoidance — costly resources that consume capacity), and the conservation law ensures γ + η = C holds during every transport. Integrates with `ternary-bus` for transport scheduling and `ternary-captain` for fleet-level resource allocation.
+
+See [ARCHITECTURE.md](https://github.com/SuperInstance/SuperInstance/blob/main/ARCHITECTURE.md) for fleet logistics architecture.
+
+## References
+
+1. Clark, K. L. et al. (2008). "Multi-Agent Resource Allocation." *AAMAS*.
+2. Chevaleyre, Y. et al. (2006). "Issues in Multiagent Resource Allocation." *Informatica*, 30, 3–31.
+3. Waldspurger, C. A. & Weihl, W. E. (1994). "Lottery Scheduling: Flexible Proportional-Share Resource Management." *OSDI*.
 
 ## License
 
